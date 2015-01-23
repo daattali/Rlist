@@ -1,81 +1,139 @@
 library(R6)
+library(magrittr)
+library(ggplot2)
 
-Rlist <- R6Class("Rlist",
-                 public = list(
-                   orig = NULL,
-                   tail = NULL,
-                   loc = c(),
-                   initialize = function(orig) {
-                     self$orig <- orig
-                     self$tail <- self$orig
-                     invisible(self)
-                   },
-                   down = function(y) {
-                     name <- as.character(as.list(match.call()[2]))
-                     if (!(name %in% names(self$tail))) {
-                       stop(paste0(name, " is not a valid name in the current list."), call. = FALSE)
-                     }
-                     self$loc <- c(self$loc, name)
-                     self$tail <- self$tail[[name]]
-                     invisible(self)
-                   },
-                   up = function(levels = 1) {
-                     if (length(self$loc) == 0) {
-                       stop("Already at root of list", call. = FALSE)
-                     }
-                     upto <- max(length(self$loc) - levels, 0)
-                     self$loc <- self$loc[seq_len(upto)]
-                     tail <- self$orig
-                     for (i in seq_along(self$loc)) {
-                       tail <- tail[[self$loc[i]]]
-                     }
-                     self$tail <- tail
-                     invisible(self)
-                   },
-                   top = function() {
-                     self$tail <- self$orig
-                     invisible(self)
-                   },
-                   print = function(...) {
-                     cat("Location: ", self$loc,
-                         "\norig: ", address(self$orig),
-                         "\ntail: ", address(self$tail),
-                         "\n", sep = "")
+#TODO work with non-names lists (when indices are integers or only some have names)
+#TODO format nicer (maybe in a table-like format? or just make the "x elements, y depth" line up?)
+# TODO separate functions into other files
+# TODO mention in docs that both SE and NSE are supported and how to chain calls
+#TODO shiny visualization
+#TODO cache print() results so that the lists and print can be used again
 
-                     if(is.list(self$tail) && !is.data.frame(self$tail)) {
-                       cat("List with ", length(self$tail), " items:\n", sep = "")
-                       lists <- c()
-                       others <- c()
-                       for(i in seq_along(self$tail)) {
-                         name <- ifelse(is.null(names(self$tail)), i, names(self$tail)[i])
-                         if(name == "") name <- paste0("[",i,"]")
-                         item <- self$tail[[i]]
-                         if(is.list(item) && !is.data.frame(item)) {
-                           name <- paste0(name, " (", length(item), " items)")
-                           lists <- c(lists, name)
-                         } else {
-                           name <- paste0(name, " (", paste(class(item), collapse = ", "), ")")
-                           others <- c(others, name)
-                         }
-                       }
+Rlist <- R6Class(
+  "Rlist",
 
-                       if (length(lists) > 0) {
-                         cat("  Lists:\n")
-                         lapply(lists, function(l) cat("    ", l, "\n", sep = ""))
-                       }
-                       if (length(others) > 0) {
-                         cat("  Other:\n")
-                         lapply(others, function(l) cat("    ", l, "\n", sep = ""))
-                       }
-                     } else {
-                       print(self$tail)
-                     }
+  public = list(
 
-                     invisible(self)
-                   }
-                 )
+    orig = NULL,
+    tail = NULL,
+    loc = c(),
+
+    initialize = function(orig) {
+      self$orig <- orig
+      self$tail <- self$orig
+      invisible(self)
+    },
+
+    down = function(y) {
+      if (is.numeric(y)) {
+        if (y < 1 || y > length(self$tail)) {
+          stop(paste0(y, " is not a valid index in the curent list"), call. = FALSE)
+        }
+        name <- as.numeric(y)
+      } else {
+        #TODO i stopped working here - doesnt work
+        name <- as.character(as.list(match.call()[2]))
+        if (!(name %in% names(self$tail))) {
+          stop(paste0(name, " is not a valid name in the current list."), call. = FALSE)
+        }
+      }
+
+      self$loc <- c(self$loc, name)
+      self$tail <- self$tail[[name]]
+      invisible(self)
+    },
+
+    up = function(levels = 1) {
+      if (length(self$loc) == 0) {
+        stop("Already at root of list", call. = FALSE)
+      }
+      upto <- max(length(self$loc) - levels, 0)
+      self$loc <- self$loc[seq_len(upto)]
+      tail <- self$orig
+      for (i in seq_along(self$loc)) {
+        tail <- tail[[self$loc[i]]]
+      }
+      self$tail <- tail
+      invisible(self)
+    },
+
+    top = function() {
+      self$tail <- self$orig
+      self$loc <- c()
+      invisible(self)
+    },
+
+    atTop = function() {
+      length(self$loc) == 0
+    },
+
+    print = function(...) {
+      cat0("Current location: /",
+           paste(self$loc, collapse = "/"), "\n")
+
+      if (is.list(self$tail) && !is.data.frame(self$tail)) {
+        depths <- private$depths()
+        cat0("List of depth ", max(depths),
+             " with ", countNoun(length(self$tail), "element"),
+             "\n")
+        lists <- c()
+        others <- c()
+        for(i in seq_along(self$tail)) {
+          name <- ifelse(is.null(names(self$tail)), i, names(self$tail)[i])
+          if(name == "") name <- i
+          item <- self$tail[[i]]
+          if(is.list(item) && !is.data.frame(item)) {
+            name <- paste0(name, " (",
+                           "depth ", depths[[name]] - 1, ", ",
+                           countNoun(length(item), "element"), ")")
+            lists <- c(lists, name)
+          } else {
+            name <- paste0(name, " (", paste(class(item), collapse = ", "), ")")
+            others <- c(others, name)
+          }
+        }
+
+        if (length(lists) > 0) {
+          cat("  Lists:\n")
+          lapply(lists, function(l) cat0("    ", l, "\n"))
+        }
+        if (length(others) > 0) {
+          cat("  Other:\n")
+          lapply(others, function(l) cat0("    ", l, "\n"))
+        }
+      } else {
+        print(self$tail)
+      }
+
+      invisible(self)
+    }
+  ),
+
+  private = list(
+    depths = function(x = self$tail, d = 0, all = TRUE) {
+      if(!is.list(x) || length(x) == 0) {
+        return(d)
+      }
+      depths <- lapply(x, private$depths, d + 1, FALSE) %>% unlist
+      if (!all) {
+        depths %<>% max
+      }
+
+      depths
+    }
+  )
 )
+
+countNoun <- function(num, noun) {
+  paste0(num, " ", noun, ifelse(num == 1, "", "s"))
+}
+cat0 <- function(...) {
+  cat(sep = "", ...)
+}
+
+a <- ggplot(mtcars, aes(cyl, mpg))+geom_point()+geom_line()
 b <- Rlist$new(a)
 b$down(mapping)
 b$up()
 b$down(data) %>% print
+(b$up())

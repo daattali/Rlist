@@ -8,6 +8,10 @@ library(ggplot2)
 # TODO mention in docs that both SE and NSE are supported and how to chain calls
 #TODO shiny visualization
 #TODO cache print() results so that the lists and print can be used again
+#TODO allow going down multiple levels in one call instead of chaining calls
+#TODO initialize: check that argument is proper list
+# TODO as.list: not sure what the correct behaviour here should be - if the underlying
+# list is of class ggplot, should this return an actual list or the ggplot object?
 
 Rlist <- R6Class(
   "Rlist",
@@ -24,15 +28,19 @@ Rlist <- R6Class(
       invisible(self)
     },
 
-    down = function(y) {
-      if (is.numeric(y)) {
-        if (y < 1 || y > length(self$tail)) {
-          stop(paste0(y, " is not a valid index in the curent list"), call. = FALSE)
+    as.list = function() {
+      self$orig
+    },
+
+    down = function(arg) {
+      arg <- as.list(match.call()[2])[[1]]
+      if (is.numeric(arg)) {
+        name <- as.numeric(arg)
+        if (arg < 1 || arg > length(self$tail)) {
+          stop(paste0(name, " is not a valid index in the curent list"), call. = FALSE)
         }
-        name <- as.numeric(y)
       } else {
-        #TODO i stopped working here - doesnt work
-        name <- as.character(as.list(match.call()[2]))
+        name <- as.character(arg)
         if (!(name %in% names(self$tail))) {
           stop(paste0(name, " is not a valid name in the current list."), call. = FALSE)
         }
@@ -51,7 +59,7 @@ Rlist <- R6Class(
       self$loc <- self$loc[seq_len(upto)]
       tail <- self$orig
       for (i in seq_along(self$loc)) {
-        tail <- tail[[self$loc[i]]]
+        tail <- tail[[self$loc[[i]]]]
       }
       self$tail <- tail
       invisible(self)
@@ -79,8 +87,10 @@ Rlist <- R6Class(
         lists <- c()
         others <- c()
         for(i in seq_along(self$tail)) {
-          name <- ifelse(is.null(names(self$tail)), i, names(self$tail)[i])
-          if(name == "") name <- i
+          name <- names(self$tail)[[i]]
+          if(is.null(name) || name == "") {
+            name <- i
+          }
           item <- self$tail[[i]]
           if(is.list(item) && !is.data.frame(item)) {
             name <- paste0(name, " (",
@@ -130,10 +140,20 @@ countNoun <- function(num, noun) {
 cat0 <- function(...) {
   cat(sep = "", ...)
 }
+as.list.Rlist <- function(x, ...) {
+  x$as.list()
+}
+
+
+
+################################## tests #####################
 
 a <- ggplot(mtcars, aes(cyl, mpg))+geom_point()+geom_line()
 b <- Rlist$new(a)
-b$down(mapping)
-b$up()
-b$down(data) %>% print
-(b$up())
+#b$down(mapping)
+#b$up()
+#b$down(data) %>% print
+#(b$up())
+aa <- Rlist$new(list("dsf","AAA", "g"="v"))
+
+

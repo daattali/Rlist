@@ -12,6 +12,8 @@ library(ggplot2)
 #TODO initialize: check that argument is proper list
 # TODO as.list: not sure what the correct behaviour here should be - if the underlying
 # list is of class ggplot, should this return an actual list or the ggplot object?
+# TODO attributes are not shown (and they themselves are often lists)
+# TODO formula should be regarded as list?
 
 Rlist <- R6Class(
   "Rlist",

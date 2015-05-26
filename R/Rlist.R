@@ -15,6 +15,8 @@ library(ggplot2)
 # TODO attributes are not shown (and they themselves are often lists)
 # TODO formula should be regarded as list?
 
+#' Rlist
+#' @export
 Rlist <- R6Class(
   "Rlist",
 

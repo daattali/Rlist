@@ -2,6 +2,7 @@ library(R6)
 library(magrittr)
 library(ggplot2)
 
+
 #TODO work with non-names lists (when indices are integers or only some have names)
 #TODO format nicer (maybe in a table-like format? or just make the "x elements, y depth" line up?)
 # TODO separate functions into other files
@@ -159,5 +160,3 @@ b <- Rlist$new(a)
 #b$down(data) %>% print
 #(b$up())
 aa <- Rlist$new(list("dsf","AAA", "g"="v"))
-
-

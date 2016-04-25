@@ -1,4 +1,6 @@
-## This is an abandoned project
+# This is an abandoned project
+
+## Rlist - Easy way to navigate and explore list structures in R
 
 I originally wanted to make this package for two reasons: learning how to use R6, and making a nice way to navigate complex lists in R.  Very shortly after starting the work here, RStudio released an update that included auto-completion for lists, which makes it very easy to navigate lists within RStudio, so I no longer saw the need for this package.
 
